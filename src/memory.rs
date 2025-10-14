@@ -8,7 +8,7 @@ use tracing::error;
 pub enum MemoryError {
     #[error("Section outside of bounds.")]
     SectionOutsideBounds,
-    #[error("Section outside of bounds.")]
+    #[error("Invalid permissions to perform action.")]
     ProtectionFault,
 }
 
