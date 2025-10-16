@@ -32,13 +32,13 @@ struct Section {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Region {
-    base: u64,
+    base: u32,
     data: Vec<u8>,
     sections: Vec<Section>,
 }
 
 impl Region {
-    pub fn new(base: u64, size: usize) -> Self {
+    pub fn new(base: u32, size: usize) -> Self {
         Self {
             base,
             data: vec![0; size],
@@ -47,7 +47,7 @@ impl Region {
     }
 
     /// Creates a region but the entire region is allocated, think: malloc or something.
-    pub fn new_filled(base: u64, size: usize, perms: MemoryPermissions) -> Self {
+    pub fn new_filled(base: u32, size: usize, perms: MemoryPermissions) -> Self {
         let mut r = Self::new(base, size);
 
         r.sections.push(Section {
@@ -60,7 +60,7 @@ impl Region {
 
     fn add_section(
         &mut self,
-        vaddr: u64,
+        vaddr: u32,
         perms: MemoryPermissions,
         bytes: &[u8],
     ) -> Result<(), MemoryError> {
@@ -86,9 +86,41 @@ impl Region {
 
         Ok(())
     }
+
+    /// Returns whether or not `vaddr` is inside the region.
+    pub fn contains_addr(&self, vaddr: u32) -> bool {
+        let len = self.data.len() as u64;
+        vaddr >= self.base && vaddr < self.base + len
+    }
+
+    /// Gets the offset fo the vaddr into the region.
+    pub fn offset_of(&self, vaddr: u64) -> Option<usize> {
+        let delta = vaddr.checked_sub(self.base)? as usize;
+
+        if delta < self.data.len() {
+            Some(delta)
+        } else {
+            None
+        }
+    }
+
+    fn ensure_permissions(
+        &self,
+        vaddr: u32,
+        size: u32,
+        required: MemoryPermissions,
+    ) -> Result<(), MemoryError> {
+        Ok(())
+    }
+
+    pub fn read_bytes(&self, vaddr: u32, size: u32) -> Result<Vec<u8>, MemoryError> {
+        self.ensure_permissions(vaddr, size, MemoryPermissions::READ)?;
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Memory {
     pub regions: Vec<Region>,
 }
+
+impl Memory {}
