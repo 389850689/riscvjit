@@ -4,6 +4,21 @@ use bitflags::bitflags;
 use thiserror::Error;
 use tracing::error;
 
+#[derive(Clone, Debug, Eq, PartialEq, Copy)]
+struct RegionOffset(u32);
+
+impl From<u32> for RegionOffset {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<RegionOffset> for u32 {
+    fn from(offset: RegionOffset) -> Self {
+        offset.0
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum MemoryError {
     #[error("Section outside of bounds.")]
@@ -94,7 +109,7 @@ impl Region {
     }
 
     /// Gets the offset fo the vaddr into the region.
-    pub fn offset_of(&self, vaddr: u64) -> Option<usize> {
+    pub fn offset_of(&self, vaddr: u64) -> Option<RegionOffset> {
         let delta = vaddr.checked_sub(self.base)? as usize;
 
         if delta < self.data.len() {
@@ -106,11 +121,28 @@ impl Region {
 
     fn ensure_permissions(
         &self,
-        vaddr: u32,
+        offset: RegionOffset,
         size: u32,
         required: MemoryPermissions,
     ) -> Result<(), MemoryError> {
-        Ok(())
+        let offset: u32 = offset.into();
+
+        let end = offset + size;
+
+        if end > self.data.len() {
+            return Err(MemoryError::SectionOutsideBounds);
+        }
+
+        // we find a section that contains our offset.
+        if let Some(section) = self
+            .sections
+            .iter()
+            .find(|s| s.range.start <= offset && offset < s.range.end)
+        {
+            return Ok(());
+        }
+
+        return Err(MemoryError::ProtectionFault);
     }
 
     pub fn read_bytes(&self, vaddr: u32, size: u32) -> Result<Vec<u8>, MemoryError> {
